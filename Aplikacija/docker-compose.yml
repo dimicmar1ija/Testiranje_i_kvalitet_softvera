@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  mongo:
+    image: mongo
+    container_name: mongo-db
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
+  backend:
+    build:
+      context: ./server/ForumAPI
+    container_name: forum-api
+    ports:
+      - "5000:80"
+    depends_on:
+      - mongo
+    environment:
+      - MongoDB__ConnectionString=mongodb://mongo:27017
+      - MongoDB__DatabaseName=ForumDB
+
+  frontend:
+    build:
+      context: ./client
+    container_name: forum-frontend
+    ports:
+      - "3000:3000"
+    stdin_open: true
+    tty: true
+    depends_on:
+      - backend
+
+volumes:
+  mongo-data:

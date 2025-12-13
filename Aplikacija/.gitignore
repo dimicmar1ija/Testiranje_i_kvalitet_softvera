@@ -1,0 +1,83 @@
+# ======= GLOBAL SETTINGS =======
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# ========== BACKEND (.NET) ==========
+# Build outputs
+**/Debug/
+**/Release/
+**/bin/
+**/obj/
+**/publish/
+**/out/
+
+# User-specific files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Secrets
+**/secrets.json
+
+# Visual Studio
+.vs/
+.idea/
+
+# SSL development certificates
+*.pfx
+*.key
+*.cer
+
+# ========== FRONTEND (React) ==========
+# Node modules
+client/node_modules/
+
+# Build artifacts
+client/build/
+client/.next/
+client/dist/
+
+# React testing coverage
+client/coverage/
+
+# React lock files (optional, if you're using only npm or yarn)
+client/yarn.lock
+client/package-lock.json
+
+# ========== DOCKER ==========
+# Docker override file (optional local use)
+docker-compose.override.yml
+
+# PID files
+*.pid
+
+# ========== DATABASE ==========
+# MongoDB dumps
+dump/
+
+# ========== OTHERS ==========
+# Optional local backups or config
+*.bak
+*.old
+*.orig
+*.swp
+*.tmp
+
+# Local settings
+*.local
+
+# JetBrains Rider project files (if used)
+.idea/
+
+# VS Code settings
+.vscode/
