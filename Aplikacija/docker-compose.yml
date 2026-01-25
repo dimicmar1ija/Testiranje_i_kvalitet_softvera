@@ -8,29 +8,38 @@ services:
       - "27017:27017"
     volumes:
       - mongo-data:/data/db
+      - ./db/01-init-indexes.js:/docker-entrypoint-initdb.d/01-init-indexes.js:ro
+      - ./db/02-users.insert.js:/docker-entrypoint-initdb.d/02-users.insert.js:ro
+      - ./db/03-categories.insert.js:/docker-entrypoint-initdb.d/03-categories.insert.js:ro
+      - ./db/04-posts.insert.js:/docker-entrypoint-initdb.d/04-posts.insert.js:ro
+      - ./db/05-comments.insert.js:/docker-entrypoint-initdb.d/05-comments.insert.js:ro
 
   backend:
     build:
       context: ./server/ForumAPI
     container_name: forum-api
     ports:
-      - "5000:80"
+      - "5000:8080"
     depends_on:
       - mongo
+    env_file:
+      - ./server/ForumAPI/.env
     environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - MONGO_CONN_STRING=mongodb://mongo:27017/ForumDB
       - MongoDB__ConnectionString=mongodb://mongo:27017
       - MongoDB__DatabaseName=ForumDB
 
-  frontend:
-    build:
-      context: ./client
-    container_name: forum-frontend
-    ports:
-      - "3000:3000"
-    stdin_open: true
-    tty: true
-    depends_on:
-      - backend
+
+# frontend:
+#   build:
+#     context: ./client
+#   container_name: forum-frontend
+#   ports:
+#     - "3000:3000"
+#   depends_on:
+#     - backend
+
 
 volumes:
   mongo-data:
