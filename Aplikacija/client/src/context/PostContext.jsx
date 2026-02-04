@@ -14,7 +14,7 @@ export const PostProvider = ({ children }) => {
   const fetchPosts = async () => {
     try {
       setLoading(true);
-      const res = await axios.get("http://localhost:5132/api/Post");
+      const res = await axios.get("/api/Post");
       setPosts(res.data); // Backend vraća listu postova
       setError(null);
     } catch (err) {

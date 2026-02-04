@@ -19,7 +19,7 @@ export const getPostsByAuthor = (authorId) =>
 axios.get(`/Post/by-author/${authorId}`).then(r => r.data);
 
 export const toggleLikePost = (postId, userId) => {
-  return axios.put(`http://localhost:5132/api/Post/${postId}/like?userId=${userId}`);
+  return axios.put(`/api/Post/${postId}/like?userId=${userId}`);
 };
 
 export const searchPosts = ({ tagsIds = [], match = "any" } = {}) =>
