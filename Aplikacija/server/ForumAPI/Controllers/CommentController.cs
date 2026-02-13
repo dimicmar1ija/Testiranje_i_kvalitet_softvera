@@ -6,11 +6,15 @@ using ForumAPI.Dtos;
 using ForumApi.Services;
 using System.Security.Claims;
 using System.IdentityModel.Tokens.Jwt;
+using Microsoft.AspNetCore.Authorization;
+using System.Reflection.Metadata;
+
 
 namespace ForumAPI.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize]
     public class CommentController : ControllerBase
     {
         private readonly CommentService _service;
@@ -31,13 +35,17 @@ namespace ForumAPI.Controllers
         }
 
         [HttpPost]
-        //[Authorize]
         public async Task<IActionResult> CreateComment([FromBody] CommentCreateDto dto)
         {
+            var userId = User.FindFirst("sub")?.Value??
+                        User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized();
+
             var comment = new Comment
             {
                 PostId = dto.PostId,
-                AuthorId = dto.AuthorId,
+                AuthorId = userId,
                 ParentCommentId = dto.ParentCommentId,
                 Body = dto.Body,
                 CreatedAt = DateTime.UtcNow,

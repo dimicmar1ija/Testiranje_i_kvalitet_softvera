@@ -45,7 +45,7 @@ export default function CommentThread({ postId, onCountChange }) {
   useEffect(() => { if (postId) refresh(); }, [postId]);
 
   const onCreate = async ({ postId, body, parentCommentId }) => {
-    await createComment({ postId, body, parentCommentId, authorId: currentUserId });
+    await createComment({ postId, body, parentCommentId });
     await refresh();
   };
 

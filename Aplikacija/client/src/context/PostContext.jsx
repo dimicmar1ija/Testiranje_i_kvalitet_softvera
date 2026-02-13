@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import axios from "axios";
+import http from "../api/axiosInstance"
 
 const PostContext = createContext();
 
@@ -14,7 +15,8 @@ export const PostProvider = ({ children }) => {
   const fetchPosts = async () => {
     try {
       setLoading(true);
-      const res = await axios.get("/api/Post");
+      //const res = await axios.get("/api/Post");
+      const res = await http.get("Post");
       setPosts(res.data); // Backend vraća listu postova
       setError(null);
     } catch (err) {

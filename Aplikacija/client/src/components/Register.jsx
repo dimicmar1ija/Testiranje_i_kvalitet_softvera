@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate } from "react-router-dom";
 import axios from "../api/axiosInstance";
 import "../app.css"; // use global app.css
 
@@ -12,7 +12,7 @@ export const Register = () => {
   const handleRegister = async (e) => {
     e.preventDefault();
     try {
-      await axios.post("/auth/register", { username, email, password });
+      await axios.post("Auth/register", { username, email, password });
       navigate("/login");
     } catch (err) {
       alert("Registration failed: " + err);

@@ -15,20 +15,28 @@ services:
       - ./db/05-comments.insert.js:/docker-entrypoint-initdb.d/05-comments.insert.js:ro
 
   backend:
-    build:
-      context: ./server/ForumAPI
-    container_name: forum-api
-    ports:
-      - "5000:8080"
-    depends_on:
-      - mongo
-    env_file:
-      - ./server/ForumAPI/.env
-    environment:
-      - ASPNETCORE_ENVIRONMENT=Development
-      - MONGO_CONN_STRING=mongodb://mongo:27017/ForumDB
-      - MongoDB__ConnectionString=mongodb://mongo:27017
-      - MongoDB__DatabaseName=ForumDB
+      build:
+        context: ./server/ForumAPI
+        target: dev
+      container_name: forum-api
+      ports:
+        - "5000:8080"
+      depends_on:
+        - mongo
+      env_file:
+        - ./server/ForumAPI/.env
+      environment:
+        - ASPNETCORE_ENVIRONMENT=Development
+        - ASPNETCORE_URLS=http://0.0.0.0:8080
+        - DOTNET_USE_POLLING_FILE_WATCHER=1
+        - MONGO_CONN_STRING=mongodb://mongo:27017/ForumDB
+        - MongoDB__ConnectionString=mongodb://mongo:27017
+        - MongoDB__DatabaseName=ForumDB
+      volumes:
+        - ./server/ForumAPI:/src
+      working_dir: /src
+
+
 
 
 # frontend:

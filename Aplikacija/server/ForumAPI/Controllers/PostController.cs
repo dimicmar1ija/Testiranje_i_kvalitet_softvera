@@ -1,10 +1,13 @@
 using ForumApi.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
+using MongoDB.Bson;
 
 namespace ForumAPI.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize]
     public class PostController : ControllerBase
     {
         private readonly PostService _postService;
@@ -105,6 +108,10 @@ namespace ForumAPI.Controllers
         [HttpGet("by-author/{authorId}")]
         public async Task<ActionResult<IEnumerable<Post>>> GetByAuthor(string authorId)
         {
+            // Validacija formata 
+            if (!ObjectId.TryParse(authorId, out _))
+                return BadRequest("Invalid authorId.");
+            //citanje
             var post = await _postService.GetByAuthorAsync(authorId);
             return Ok(post);
         }

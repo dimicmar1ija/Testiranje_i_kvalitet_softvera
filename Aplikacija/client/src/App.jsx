@@ -8,7 +8,7 @@ import { Routes, Route } from 'react-router-dom';
 import ProtectedRoute from './components/ProtectedRoute';
 import PublicRoute from './components/PublicRoute';
 import { useAuth } from "./context/AuthContext";
-import Layout from './components/Layout';
+import Layout from './components/layout';
 import { CreatePost } from "./pages/CreatePost";  
 import { MyProfile } from './components/MyProfile';
 import { UserProfile } from './components/UserProfile';

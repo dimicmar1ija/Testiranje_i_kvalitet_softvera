@@ -29,6 +29,17 @@ public class TestApiClient
         var dto = new { username, email, password };
         return await Http.PostAsync("/api/Auth/register", JsonContent(dto));
     }
+    
+    public async Task<(string token, string userId)> EnsureAuthedAsync()
+    {
+        var uname = "nunit_" + Guid.NewGuid().ToString("N")[..8];
+        var email = uname + "@test.com";
+        var pass = "Test123!";
+
+        var (token, userId) = await RegisterAndLoginAsync(uname, email, pass);
+        SetBearer(token);
+        return (token, userId);
+    }
 
     public async Task<string> LoginAndGetTokenAsync(string username, string password)
     {
@@ -45,9 +56,6 @@ public class TestApiClient
     public async Task<(string token, string userId)> RegisterAndLoginAsync(string username, string email, string password)
     {
         var reg = await RegisterAsync(username, email, password);
-        // Ako user već postoji iz nekog razloga, neka ne pukne test odmah
-        // (200/201 ok, 400 može ako je već u bazi)
-        // ti možeš ovo pooštriti kasnije
 
         var token = await LoginAndGetTokenAsync(username, password);
 
