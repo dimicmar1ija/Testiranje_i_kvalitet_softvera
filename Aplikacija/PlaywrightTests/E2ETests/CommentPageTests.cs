@@ -71,99 +71,99 @@ public class CommentPageTests : BaseTest
         await Assertions.Expect(postCard).ToContainTextAsync(text, new() { Timeout = 20000 });
     }
 
-[Test]
-public async Task EditComment_OnHomePost_ShowsUpdatedText()
-{
-    var (page, postCard, _, _) = await ArrangeHomePostWithCommentsAsync();
-
-    var original = await AddCommentInPostCardAsync(postCard);
-
-    // 1) Nađi blok komentara dok još postoji originalni tekst
-    var commentBlock = postCard.Locator("div.border-l-2")
-        .Filter(new() { HasTextString = original })
-        .First;
-
-    await Assertions.Expect(commentBlock).ToBeVisibleAsync(new() { Timeout = 20000 });
-
-    // 2) Klik Izmeni
-    await commentBlock.GetByRole(AriaRole.Button, new() { Name = "Izmeni" }).ClickAsync();
-
-    // 3) U edit modu: textarea placeholder "Napiši komentar..."
-    //    (lociraj najbliži comment blok koji SAD sadrži taj textarea)
-    var editBox = postCard.Locator("textarea[placeholder='Napiši komentar...']").First;
-    await Assertions.Expect(editBox).ToBeVisibleAsync(new() { Timeout = 20000 });
-
-    var updated = Unique("Komentar_IZMENJEN");
-    await editBox.FillAsync(updated);
-
-    // 4) Klik Sačuvaj - uzmi dugme u istom comment bloku (border-l-2 parent)
-    var editBlock = editBox.Locator("xpath=ancestor::div[contains(@class,'border-l-2')][1]");
-    var saveBtn = editBlock.GetByRole(AriaRole.Button, new() { Name = "Sačuvaj" });
-
-    await Assertions.Expect(saveBtn).ToBeVisibleAsync(new() { Timeout = 20000 });
-    await saveBtn.ClickAsync();
-
-    // 5) Čekaj da se pojavi novi tekst (refresh u CommentThread)
-    await Assertions.Expect(postCard).ToContainTextAsync(updated, new() { Timeout = 20000 });
-}
-
-[Test]
-public async Task DeleteComment_OnHomePost_RemovesIt()
-{
-    var (page, postCard, _, _) = await ArrangeHomePostWithCommentsAsync();
-
-    var text = await AddCommentInPostCardAsync(postCard);
-
-    var commentTextLoc = postCard.GetByText(text, new() { Exact = true });
-    var commentBlock = commentTextLoc.Locator("xpath=ancestor::div[contains(@class,'border-l-2')][1]");
-    await Assertions.Expect(commentBlock).ToBeVisibleAsync(new() { Timeout = 20000 });
-
-    // klik Obriši
-    await commentBlock.GetByRole(AriaRole.Button, new() { Name = "Obriši" }).ClickAsync();
-
-    // refresh() se dešava u CommentThread, pa čekamo da nestane tekst
-    await Assertions.Expect(commentTextLoc).ToHaveCountAsync(0, new() { Timeout = 20000 });
-}
-
-[Test]
-public async Task LikeComment_OnHomePost_IncrementsLikeCount()
-{
-    var (page, postCard, _, _) = await ArrangeHomePostWithCommentsAsync();
-
-    var text = await AddCommentInPostCardAsync(postCard);
-
-    var commentBlock = postCard.GetByText(text, new() { Exact = true })
-        .Locator("xpath=ancestor::div[contains(@class,'border-l-2')][1]");
-
-    await Assertions.Expect(commentBlock).ToBeVisibleAsync(new() { Timeout = 20000 });
-
-    // Like dugme je prvo u actions row-u
-    var actionsRow = commentBlock.Locator("div.flex.gap-3.mt-2.items-center");
-    await Assertions.Expect(actionsRow).ToBeVisibleAsync(new() { Timeout = 20000 });
-
-    var likeBtn = actionsRow.Locator("button").Nth(0);
-
-    var beforeText = await likeBtn.InnerTextAsync();
-    var before = ExtractLastInt(beforeText);
-
-    await likeBtn.ClickAsync();
-
-    // posle refresh-a DOM se re-renderuje, pa re-lociraj dugme i čekaj da broj poraste
-    int after = before;
-    for (int i = 0; i < 20; i++) // ~20s
+    [Test]
+    public async Task EditComment_OnHomePost_ShowsUpdatedText()
     {
-        await page.WaitForTimeoutAsync(1000);
+        var (page, postCard, _, _) = await ArrangeHomePostWithCommentsAsync();
 
-        var afterText = await actionsRow.Locator("button").Nth(0).InnerTextAsync();
-        after = ExtractLastInt(afterText);
+        var original = await AddCommentInPostCardAsync(postCard);
 
-        if (after > before)
-            break;
+        // 1) Nađi blok komentara dok još postoji originalni tekst
+        var commentBlock = postCard.Locator("div.border-l-2")
+            .Filter(new() { HasTextString = original })
+            .First;
+
+        await Assertions.Expect(commentBlock).ToBeVisibleAsync(new() { Timeout = 20000 });
+
+        // 2) Klik Izmeni
+        await commentBlock.GetByRole(AriaRole.Button, new() { Name = "Izmeni" }).ClickAsync();
+
+        // 3) U edit modu: textarea placeholder "Napiši komentar..."
+        //    (lociraj najbliži comment blok koji SAD sadrži taj textarea)
+        var editBox = postCard.Locator("textarea[placeholder='Napiši komentar...']").First;
+        await Assertions.Expect(editBox).ToBeVisibleAsync(new() { Timeout = 20000 });
+
+        var updated = Unique("Komentar_IZMENJEN");
+        await editBox.FillAsync(updated);
+
+        // 4) Klik Sačuvaj - uzmi dugme u istom comment bloku (border-l-2 parent)
+        var editBlock = editBox.Locator("xpath=ancestor::div[contains(@class,'border-l-2')][1]");
+        var saveBtn = editBlock.GetByRole(AriaRole.Button, new() { Name = "Sačuvaj" });
+
+        await Assertions.Expect(saveBtn).ToBeVisibleAsync(new() { Timeout = 20000 });
+        await saveBtn.ClickAsync();
+
+        // 5) Čekaj da se pojavi novi tekst (refresh u CommentThread)
+        await Assertions.Expect(postCard).ToContainTextAsync(updated, new() { Timeout = 20000 });
     }
 
-    Assert.That(after, Is.GreaterThan(before),
-        $"Like count nije porastao. Pre={before}, Posle={after}");
-}
+    [Test]
+    public async Task DeleteComment_OnHomePost_RemovesIt()
+    {
+        var (page, postCard, _, _) = await ArrangeHomePostWithCommentsAsync();
+
+        var text = await AddCommentInPostCardAsync(postCard);
+
+        var commentTextLoc = postCard.GetByText(text, new() { Exact = true });
+        var commentBlock = commentTextLoc.Locator("xpath=ancestor::div[contains(@class,'border-l-2')][1]");
+        await Assertions.Expect(commentBlock).ToBeVisibleAsync(new() { Timeout = 20000 });
+
+        // klik Obriši
+        await commentBlock.GetByRole(AriaRole.Button, new() { Name = "Obriši" }).ClickAsync();
+
+        // refresh() se dešava u CommentThread, pa čekamo da nestane tekst
+        await Assertions.Expect(commentTextLoc).ToHaveCountAsync(0, new() { Timeout = 20000 });
+    }
+
+    [Test]
+    public async Task LikeComment_OnHomePost_IncrementsLikeCount()
+    {
+        var (page, postCard, _, _) = await ArrangeHomePostWithCommentsAsync();
+
+        var text = await AddCommentInPostCardAsync(postCard);
+
+        var commentBlock = postCard.GetByText(text, new() { Exact = true })
+            .Locator("xpath=ancestor::div[contains(@class,'border-l-2')][1]");
+
+        await Assertions.Expect(commentBlock).ToBeVisibleAsync(new() { Timeout = 20000 });
+
+        // Like dugme je prvo u actions row-u
+        var actionsRow = commentBlock.Locator("div.flex.gap-3.mt-2.items-center");
+        await Assertions.Expect(actionsRow).ToBeVisibleAsync(new() { Timeout = 20000 });
+
+        var likeBtn = actionsRow.Locator("button").Nth(0);
+
+        var beforeText = await likeBtn.InnerTextAsync();
+        var before = ExtractLastInt(beforeText);
+
+        await likeBtn.ClickAsync();
+
+        // posle refresh-a DOM se re-renderuje, pa re-lociraj dugme i čekaj da broj poraste
+        int after = before;
+        for (int i = 0; i < 20; i++) // ~20s
+        {
+            await page.WaitForTimeoutAsync(1000);
+
+            var afterText = await actionsRow.Locator("button").Nth(0).InnerTextAsync();
+            after = ExtractLastInt(afterText);
+
+            if (after > before)
+                break;
+        }
+
+        Assert.That(after, Is.GreaterThan(before),
+            $"Like count nije porastao. Pre={before}, Posle={after}");
+    }
 
     // helper: izvuci poslednji int iz stringa (brojač na kraju dugmeta)
     private static int ExtractLastInt(string s)
