@@ -132,7 +132,7 @@ builder.Services.AddSwaggerGen(c =>
     Scheme = "bearer",
     BearerFormat = "JWT",
     In = ParameterLocation.Header,
-    Description = "Unesi JWT ovako: Bearer {token}"
+    Description = "Unesi token"
 });
 
 

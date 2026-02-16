@@ -13,7 +13,7 @@ namespace PlaywrightTests.E2ETests
             var email = $"{username}@example.com";
             var password = "Test123!";
 
-            await Page.GotoAsync($"{UiBaseUrl}/register", new() { WaitUntil = WaitUntilState.NetworkIdle });
+            await Page.GotoAsync($"{UiBaseUrl}/register", new PageGotoOptions { WaitUntil = WaitUntilState.DOMContentLoaded });
 
             await Page.GetByPlaceholder("Username").FillAsync(username);
             await Page.GetByPlaceholder("Email").FillAsync(email);
@@ -44,7 +44,6 @@ namespace PlaywrightTests.E2ETests
             Assert.That(loginResp.Status, Is.InRange(200, 299),
                 $"Login nije uspeo. Status={loginResp.Status}. Body={await loginResp.TextAsync()}");
 
-            // ključno: sačekaj token u localStorage
             await Page.WaitForFunctionAsync("() => !!localStorage.getItem('jwt')", null, new() { Timeout = 15000 });
 
             await Assertions.Expect(Page).ToHaveURLAsync(new Regex(".*/home$", RegexOptions.IgnoreCase), new() { Timeout = 15000 });

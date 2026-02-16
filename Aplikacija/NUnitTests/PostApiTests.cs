@@ -23,7 +23,7 @@ public class PostApiTests
 
         var payload = new
         {
-            id = ObjectId.GenerateNewId().ToString(),     // OBAVEZNO kod tebe
+            id = ObjectId.GenerateNewId().ToString(),    
             authorId = userId,
             title = title ?? ("NUnit post " + Guid.NewGuid().ToString("N")[..6]),
             body = body ?? "Body from NUnit",
@@ -281,7 +281,7 @@ public class PostApiTests
    [Test]
     public async Task Post_ByAuthor_Ok_ReturnsOk()
     {
-        var (_, authorId) = await CreatePostAsync(); // kreira post i vrati authorId
+        var (_, authorId) = await CreatePostAsync(); 
         var resp = await _api.Http.GetAsync($"/api/Post/by-author/{authorId}");
         Assert.That(resp.StatusCode, Is.EqualTo(HttpStatusCode.OK));
     }

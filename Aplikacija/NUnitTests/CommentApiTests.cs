@@ -161,7 +161,6 @@ public class CommentApiTests
 
         var resp = await _api.Http.PutAsync($"/api/Comment/{cid}", TestApiClient.JsonContent(dto));
 
-        //  204 ako role claim radi kako treba (user/admin)
         Assert.That(resp.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
     }
 

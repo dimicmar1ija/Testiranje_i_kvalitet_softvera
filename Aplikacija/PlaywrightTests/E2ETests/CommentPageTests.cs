@@ -3,141 +3,86 @@ using NUnit.Framework;
 
 namespace PlaywrightTests.E2ETests;
 
-public class CommentPageTests : BaseTest
+public class CommentPageTests : UiFixtureBase
 {
     [Test]
     public async Task AddComment_OnHomePost_ShowsComment()
     {
-        await using var api = await CreateApiContextAsync(this.Playwright);
-
-        var u = Unique("pw_user");
-        var p = "Pass123!";
-
-        await RegisterAsync(api, u, p);
-        var token = await LoginAndGetTokenAsync(api, u, p);
-
-        var page = await OpenHomeAsJwtAsync(token);
-
-        // Kreiraj post preko UI i uzmi ID + TITLE
-        var (postId, postTitle) = await UiCreatePostAsync(page);
-
-        // Uveri se da smo na /home
-        await page.GotoAsync($"{UiBaseUrl}/home", new() { WaitUntil = WaitUntilState.NetworkIdle });
-
-        // 1) Nađi karticu posta po naslovu (u PostView title je <h2>)
-        var postCard = page.Locator("h2", new() { HasTextString = postTitle })
-                           .Locator("xpath=ancestor::div[contains(@class,'rounded-3xl')][1]");
-
-        await Assertions.Expect(postCard).ToBeVisibleAsync(new() { Timeout = 20000 });
-
-        // 2) Klikni dugme "Komentari" (u PostView je baš taj tekst)
-        var toggle = postCard.Locator("button", new() { HasTextString = "Komentari" }).First;
-        await Assertions.Expect(toggle).ToBeVisibleAsync(new() { Timeout = 20000 });
-        await toggle.ClickAsync();
-
-        // 3) Sačekaj da se pojavi CommentThread (ima <h3>Komentari</h3>)
-        var threadHeader = postCard.Locator("h3", new() { HasTextString = "Komentari" });
-        await Assertions.Expect(threadHeader).ToBeVisibleAsync(new() { Timeout = 20000 });
-
-        // 4) Polje iz CommentForm: može biti textarea ili input
-        //    Uzimamo prvo koje postoji UNUTAR thread-a
-        var commentBox = postCard.Locator("h3:has-text('Komentari')").Locator("xpath=..")
-                                 .Locator("textarea, input[type='text'], input:not([type])")
-                                 .First;
-
-        await Assertions.Expect(commentBox).ToBeVisibleAsync(new() { Timeout = 20000 });
+        var (ctx, page, postCard, _) = await ArrangeHomePostWithCommentsAsync();
 
         var text = Unique("Komentar");
-        await commentBox.FillAsync(text);
+        await AddCommentInPostCardAsync(postCard, text);
 
-        // 5) Submit dugme: najbolje type='submit' u CommentForm
-        var submit = postCard.Locator("button[type='submit']").First;
-
-        if (await submit.CountAsync() == 0)
-            submit = postCard.Locator("button", new() { HasTextString = "Objavi" }).First;
-
-        if (await submit.CountAsync() == 0)
-            submit = postCard.Locator("button", new() { HasTextString = "Pošalji" }).First;
-
-        if (await submit.CountAsync() == 0)
-        {
-            await postCard.ScreenshotAsync(new() { Path = "debug-no-submit-comment.png" });
-            Assert.Fail("Ne nalazim submit dugme za komentar (nema button[type='submit'] / Objavi / Pošalji).");
-        }
-
-        await submit.ClickAsync();
-
-        // 6) Komentar se pojavljuje posle refresh() u CommentThread
         await Assertions.Expect(postCard).ToContainTextAsync(text, new() { Timeout = 20000 });
+
+        await ctx.DisposeAsync();
     }
 
     [Test]
     public async Task EditComment_OnHomePost_ShowsUpdatedText()
     {
-        var (page, postCard, _, _) = await ArrangeHomePostWithCommentsAsync();
+        var (ctx, page, postCard, _) = await ArrangeHomePostWithCommentsAsync();
 
-        var original = await AddCommentInPostCardAsync(postCard);
+        var original = Unique("Komentar");
+        await AddCommentInPostCardAsync(postCard, original);
 
-        // 1) Nađi blok komentara dok još postoji originalni tekst
         var commentBlock = postCard.Locator("div.border-l-2")
             .Filter(new() { HasTextString = original })
             .First;
 
         await Assertions.Expect(commentBlock).ToBeVisibleAsync(new() { Timeout = 20000 });
 
-        // 2) Klik Izmeni
         await commentBlock.GetByRole(AriaRole.Button, new() { Name = "Izmeni" }).ClickAsync();
 
-        // 3) U edit modu: textarea placeholder "Napiši komentar..."
-        //    (lociraj najbliži comment blok koji SAD sadrži taj textarea)
         var editBox = postCard.Locator("textarea[placeholder='Napiši komentar...']").First;
         await Assertions.Expect(editBox).ToBeVisibleAsync(new() { Timeout = 20000 });
 
         var updated = Unique("Komentar_IZMENJEN");
         await editBox.FillAsync(updated);
 
-        // 4) Klik Sačuvaj - uzmi dugme u istom comment bloku (border-l-2 parent)
         var editBlock = editBox.Locator("xpath=ancestor::div[contains(@class,'border-l-2')][1]");
         var saveBtn = editBlock.GetByRole(AriaRole.Button, new() { Name = "Sačuvaj" });
 
         await Assertions.Expect(saveBtn).ToBeVisibleAsync(new() { Timeout = 20000 });
         await saveBtn.ClickAsync();
 
-        // 5) Čekaj da se pojavi novi tekst (refresh u CommentThread)
         await Assertions.Expect(postCard).ToContainTextAsync(updated, new() { Timeout = 20000 });
+
+        await ctx.DisposeAsync();
     }
 
     [Test]
     public async Task DeleteComment_OnHomePost_RemovesIt()
     {
-        var (page, postCard, _, _) = await ArrangeHomePostWithCommentsAsync();
+        var (ctx, page, postCard, _) = await ArrangeHomePostWithCommentsAsync();
 
-        var text = await AddCommentInPostCardAsync(postCard);
+        var text = Unique("Komentar");
+        await AddCommentInPostCardAsync(postCard, text);
 
         var commentTextLoc = postCard.GetByText(text, new() { Exact = true });
         var commentBlock = commentTextLoc.Locator("xpath=ancestor::div[contains(@class,'border-l-2')][1]");
         await Assertions.Expect(commentBlock).ToBeVisibleAsync(new() { Timeout = 20000 });
 
-        // klik Obriši
         await commentBlock.GetByRole(AriaRole.Button, new() { Name = "Obriši" }).ClickAsync();
 
-        // refresh() se dešava u CommentThread, pa čekamo da nestane tekst
         await Assertions.Expect(commentTextLoc).ToHaveCountAsync(0, new() { Timeout = 20000 });
+
+        await ctx.DisposeAsync();
     }
 
     [Test]
     public async Task LikeComment_OnHomePost_IncrementsLikeCount()
     {
-        var (page, postCard, _, _) = await ArrangeHomePostWithCommentsAsync();
+        var (ctx, page, postCard, _) = await ArrangeHomePostWithCommentsAsync();
 
-        var text = await AddCommentInPostCardAsync(postCard);
+        var text = Unique("Komentar");
+        await AddCommentInPostCardAsync(postCard, text);
 
         var commentBlock = postCard.GetByText(text, new() { Exact = true })
             .Locator("xpath=ancestor::div[contains(@class,'border-l-2')][1]");
 
         await Assertions.Expect(commentBlock).ToBeVisibleAsync(new() { Timeout = 20000 });
 
-        // Like dugme je prvo u actions row-u
         var actionsRow = commentBlock.Locator("div.flex.gap-3.mt-2.items-center");
         await Assertions.Expect(actionsRow).ToBeVisibleAsync(new() { Timeout = 20000 });
 
@@ -148,24 +93,106 @@ public class CommentPageTests : BaseTest
 
         await likeBtn.ClickAsync();
 
-        // posle refresh-a DOM se re-renderuje, pa re-lociraj dugme i čekaj da broj poraste
-        int after = before;
-        for (int i = 0; i < 20; i++) // ~20s
-        {
-            await page.WaitForTimeoutAsync(1000);
+        await Assertions.Expect(likeBtn)
+                .Not.ToHaveTextAsync(beforeText, new() { Timeout = 10000 });
 
-            var afterText = await actionsRow.Locator("button").Nth(0).InnerTextAsync();
-            after = ExtractLastInt(afterText);
-
-            if (after > before)
-                break;
-        }
+        var afterText = await likeBtn.InnerTextAsync();
+        var after = ExtractLastInt(afterText);
 
         Assert.That(after, Is.GreaterThan(before),
             $"Like count nije porastao. Pre={before}, Posle={after}");
+
+        await ctx.DisposeAsync();
     }
 
-    // helper: izvuci poslednji int iz stringa (brojač na kraju dugmeta)
+    //helpers
+    private async Task<(IBrowserContext ctx, IPage page, ILocator postCard, string postTitle)>
+        ArrangeHomePostWithCommentsAsync()
+    {
+        var (ctx, page) = await NewAuthedPageAsync();
+
+        // Ne koristi NetworkIdle (često flaky za SPA)
+        await page.GotoAsync($"{UiBaseUrl}/home", new PageGotoOptions { WaitUntil = WaitUntilState.DOMContentLoaded });
+
+        // Kreiraj post preko UI (brzo i deterministično: čekamo POST /api/Post)
+        await page.Locator("button", new() { HasTextString = "Kreiraj" }).First.ClickAsync();
+
+        var postTitle = Unique("UI_POST");
+        await page.GetByPlaceholder("Naslov").FillAsync(postTitle);
+        await page.GetByPlaceholder("Tekst (opciono)").FillAsync("UI body");
+
+        var createPostRespTask = page.WaitForResponseAsync(r =>
+            r.Url.Contains("/api/Post") && r.Request.Method == "POST",
+            new() { Timeout = 15000 });
+
+        await page.Locator("button", new() { HasTextString = "Objavi" }).First.ClickAsync();
+
+        var resp = await createPostRespTask;
+        Assert.That(resp.Status, Is.InRange(200, 299), $"UI kreiranje posta nije uspelo. Body={await resp.TextAsync()}");
+
+        // Vrati se na /home i sačekaj učitavanje feed-a (GET /api/Post)
+        await page.GotoAsync($"{UiBaseUrl}/home", new PageGotoOptions { WaitUntil = WaitUntilState.DOMContentLoaded });
+
+        await page.WaitForResponseAsync(r =>
+            r.Url.Contains("/api/Post") && r.Request.Method == "GET",
+            new() { Timeout = 15000 });
+
+        // Ako UI pokaže error "Ne mogu da učitam postove", uradi samo jedan reload
+        if (await page.GetByText("Ne mogu da učitam postove").CountAsync() > 0)
+        {
+            await page.ReloadAsync(new() { WaitUntil = WaitUntilState.DOMContentLoaded });
+            await page.WaitForResponseAsync(r =>
+                r.Url.Contains("/api/Post") && r.Request.Method == "GET",
+                new() { Timeout = 15000 });
+        }
+
+        var postCard = page.Locator("h2", new() { HasTextString = postTitle })
+            .First
+            .Locator("xpath=ancestor::div[contains(@class,'rounded-3xl')][1]");
+
+        await Assertions.Expect(postCard).ToBeVisibleAsync(new() { Timeout = 15000 });
+
+        return (ctx, page, postCard, postTitle);
+    }
+
+    private async Task AddCommentInPostCardAsync(ILocator postCard, string text)
+    {
+        var toggle = postCard.Locator("button", new() { HasTextString = "Komentari" }).First;
+        await Assertions.Expect(toggle).ToBeVisibleAsync(new() { Timeout = 15000 });
+        await toggle.ClickAsync();
+
+        var threadHeader = postCard.Locator("h3", new() { HasTextString = "Komentari" });
+        await Assertions.Expect(threadHeader).ToBeVisibleAsync(new() { Timeout = 15000 });
+
+        // tolerantno: uzmi prvi textarea u zoni komentara
+        var commentBox = postCard.Locator("textarea").First;
+        await Assertions.Expect(commentBox).ToBeVisibleAsync(new() { Timeout = 15000 });
+
+        await commentBox.FillAsync(text);
+
+        var form = commentBox.Locator("xpath=ancestor::form[1]");
+        await Assertions.Expect(form).ToBeVisibleAsync(new() { Timeout = 15000 });
+
+        var submit = form.Locator("button[type='submit']").First;
+
+        // fallback ako nema type=submit
+        if (await submit.CountAsync() == 0)
+            submit = form.Locator("button", new() { HasTextString = "Objavi" }).First;
+        if (await submit.CountAsync() == 0)
+            submit = form.Locator("button", new() { HasTextString = "Pošalji" }).First;
+
+        if (await submit.CountAsync() == 0)
+        {
+            await postCard.ScreenshotAsync(new() { Path = "debug-no-submit-comment.png" });
+            Assert.Fail("Ne nalazim submit dugme za komentar (nema button[type='submit'] / Objavi / Pošalji).");
+        }
+
+        await submit.ClickAsync();
+
+        // čekaj da se komentar pojavi (UI update)
+        await Assertions.Expect(postCard).ToContainTextAsync(text, new() { Timeout = 15000 });
+    }
+
     private static int ExtractLastInt(string s)
     {
         var m = System.Text.RegularExpressions.Regex.Match(s ?? "", @"(\d+)\s*$");

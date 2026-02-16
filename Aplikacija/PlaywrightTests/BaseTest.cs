@@ -121,7 +121,6 @@ public class BaseTest : PageTest
 
     protected async Task<IAPIRequestContext> CreateApiContextAsync(IPlaywright playwright, string? token = null)
     {
-        await Page.ScreenshotAsync(new() { Path = "debug-home.png", FullPage = true });
 
         var headers = new Dictionary<string, string>
         {
@@ -153,8 +152,6 @@ public class BaseTest : PageTest
         Assert.That(resp.Status, Is.AnyOf(200, 201),
             $"Register failed. Status={resp.Status}. Body={await resp.TextAsync()}");
     }
-
-
 
     protected async Task<string> LoginAndGetTokenAsync(IAPIRequestContext api, string username, string password)
     {
@@ -209,15 +206,12 @@ public class BaseTest : PageTest
         return doc.RootElement.GetProperty("id").GetString()!;
     }
 
-
     protected async Task<string> CreatePostAsync(
         IAPIRequestContext apiWithAuth,
         string authorId,
         string title,
         string body)
     {
-        await Page.ScreenshotAsync(new() { Path = "debug-home.png", FullPage = true });
-
         var now = DateTime.UtcNow;
 
         var payload = new
@@ -246,8 +240,6 @@ public class BaseTest : PageTest
         return doc.RootElement.GetProperty("id").GetString()!;
     }
 
-
-
     protected static string GenerateObjectIdLike()
         => Guid.NewGuid().ToString("N")[..24];
 
@@ -265,8 +257,6 @@ public class BaseTest : PageTest
         string body,
         string? parentCommentId = null)
     {
-        await Page.ScreenshotAsync(new() { Path = "debug-home.png", FullPage = true });
-
         var resp = await apiWithAuth.PostAsync("/api/Comment", new()
         {
             DataObject = new
@@ -294,7 +284,6 @@ public class BaseTest : PageTest
 
     protected async Task SetJwtForUiAsync(string jwt)
         {
-                // pokrij više mogućih ključeva koje frontend može da koristi
                 await Context.AddInitScriptAsync(@"(token) => {
                     localStorage.setItem('jwt', token);
                     localStorage.setItem('token', token);
@@ -352,68 +341,8 @@ public class BaseTest : PageTest
         return (postId, title);
     }
 
-    protected async Task<(IPage page, ILocator postCard, string postId, string postTitle)> ArrangeHomePostWithCommentsAsync()
-    {
-        await using var api = await CreateApiContextAsync(this.Playwright);
-
-        var u = Unique("pw_user");
-        var p = "Pass123!";
-
-        await RegisterAsync(api, u, p);
-        var token = await LoginAndGetTokenAsync(api, u, p);
-
-        var page = await OpenHomeAsJwtAsync(token);
-
-        // kreiraj post i uzmi (id,title)
-        var (postId, postTitle) = await UiCreatePostAsync(page);
-
-        // uvek se vrati na home posle kreiranja
-        await page.GotoAsync($"{UiBaseUrl}/home", new() { WaitUntil = WaitUntilState.NetworkIdle });
-
-        // locator za post card po naslovu (h2 PostView)
-        ILocator PostCard() =>
-            page.Locator("h2", new() { HasTextString = postTitle })
-                .First
-                .Locator("xpath=ancestor::div[contains(@class,'rounded-3xl')][1]");
-
-        // retry 4 puta: čekaj da feed učita i da se post pojavi
-        for (int attempt = 1; attempt <= 4; attempt++)
-        {
-            // ako UI kaže da ne može da učita postove, uradi reload
-            if (await page.GetByText("Ne mogu da učitam postove").CountAsync() > 0)
-                await page.ReloadAsync(new() { WaitUntil = WaitUntilState.NetworkIdle });
-
-            var postCard = PostCard();
-
-            if (await postCard.CountAsync() > 0)
-            {
-                // čekaj vidljivost
-                try
-                {
-                    await Assertions.Expect(postCard).ToBeVisibleAsync(new() { Timeout = 8000 });
-                    return (page, postCard, postId, postTitle);
-                }
-                catch
-                {
-                    
-                }
-            }
-
-            // nije nadjen -> reload i pokušaj ponovo
-            await page.ReloadAsync(new() { WaitUntil = WaitUntilState.NetworkIdle });
-            await page.WaitForTimeoutAsync(300);
-        }
-
-        await page.ScreenshotAsync(new() { Path = "debug-post-not-in-feed.png", FullPage = true });
-        var bodyText = await page.Locator("body").InnerTextAsync();
-        Assert.Fail($"Post '{postTitle}' nije pronađen na /home nakon retry. BODY:\n{bodyText}");
-
-        return default;
-    }
-
     protected async Task<string> AddCommentInPostCardAsync(ILocator postCard)
     {
-        // 1) Otvori komentar thread
         var toggle = postCard.Locator("button", new() { HasTextString = "Komentari" }).First;
         await Assertions.Expect(toggle).ToBeVisibleAsync(new() { Timeout = 20000 });
         await toggle.ClickAsync();
@@ -421,7 +350,6 @@ public class BaseTest : PageTest
         var threadHeader = postCard.Locator("h3", new() { HasTextString = "Komentari" });
         await Assertions.Expect(threadHeader).ToBeVisibleAsync(new() { Timeout = 20000 });
 
-        // 2) Uhvati CommentForm textarea (placeholder "Napiši komentar…" / "Odgovori na komentar…")
         var commentBox = postCard
             .Locator("textarea[placeholder^='Napiši komentar'], textarea[placeholder^='Odgovori na komentar'], textarea")
             .First;
@@ -431,7 +359,6 @@ public class BaseTest : PageTest
         var text = Unique("Komentar");
         await commentBox.FillAsync(text);
 
-        // 3) Submit dugme u istoj formi (type="submit", text "Objavi komentar" ili "Odgovori")
         var form = commentBox.Locator("xpath=ancestor::form[1]");
         await Assertions.Expect(form).ToBeVisibleAsync(new() { Timeout = 20000 });
 

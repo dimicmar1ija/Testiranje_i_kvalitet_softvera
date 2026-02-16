@@ -1,39 +1,43 @@
 using Microsoft.Playwright;
-using Microsoft.Playwright.NUnit;
 using NUnit.Framework;
 
 namespace PlaywrightTests.E2ETests;
 
-public class PostPageTests : BaseTest
+public class PostPageTests : UiFixtureBase
 {
     [Test]
     public async Task CreatePost_FromHome_ShowsInList()
     {
-        await using var api = await CreateApiContextAsync(this.Playwright);
+        var (ctx, page) = await NewAuthedPageAsync();
 
-        // napravi novog usera i uzmi token (API)
-        var u = Unique("pw_user");
-        var p = "Pass123!";
+        try
+        {
+            await page.GotoAsync($"{UiBaseUrl}/home", new PageGotoOptions
+            {
+                WaitUntil = WaitUntilState.DOMContentLoaded
+            });
 
-        await RegisterAsync(api, u, p);
-        var token = await LoginAndGetTokenAsync(api, u, p);
+            await page.GetByRole(AriaRole.Button, new() { Name = "Kreiraj post" }).ClickAsync();
 
-        // otvori UI kao ulogovan korisnik (JWT ubačen pre učitavanja React-a)
-        var page = await OpenHomeAsJwtAsync(token);
+            var title = $"UI_Naslov_{Guid.NewGuid():N}"[..20];
 
-        // otvori formu (dugme sadrži "Kreiraj")
-        await page.Locator("button", new() { HasTextString = "Kreiraj" }).First.ClickAsync();
+            await page.GetByPlaceholder("Naslov").FillAsync(title);
+            await page.GetByPlaceholder("Tekst (opciono)").FillAsync("UI body");
 
-        var title = Unique("UI_Naslov");
-        await page.GetByPlaceholder("Naslov").FillAsync(title);
+            var waitResp = page.WaitForResponseAsync(r =>
+                r.Request.Method == "POST" && r.Url.Contains("/api/Post"));
 
-        // textarea placeholder iz fronta
-        await page.GetByPlaceholder("Tekst (opciono)").FillAsync("UI body");
+            await page.GetByRole(AriaRole.Button, new() { Name = "Objavi" }).ClickAsync();
 
-        await page.GetByRole(AriaRole.Button, new() { Name = "Objavi" }).ClickAsync();
+            var resp = await waitResp;
+            Assert.That(resp.Status, Is.AnyOf(200, 201), await resp.TextAsync());
 
-        // umesto body (brzo ali grubo), može i article lista, ali ovo je ok za početak
-        await Assertions.Expect(page.Locator("body")).ToContainTextAsync(title, new() { Timeout = 15000 });
+            var postCard = page.Locator("article").Filter(new() { HasTextString = title }).First;
+            await Assertions.Expect(postCard).ToBeVisibleAsync(new() { Timeout = 15000 });
+        }
+        finally
+        {
+            await ctx.DisposeAsync();
+        }
     }
-
 }
