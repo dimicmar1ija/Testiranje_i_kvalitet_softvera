@@ -111,10 +111,8 @@ public class CommentPageTests : UiFixtureBase
     {
         var (ctx, page) = await NewAuthedPageAsync();
 
-        // Ne koristi NetworkIdle (često flaky za SPA)
         await page.GotoAsync($"{UiBaseUrl}/home", new PageGotoOptions { WaitUntil = WaitUntilState.DOMContentLoaded });
 
-        // Kreiraj post preko UI (brzo i deterministično: čekamo POST /api/Post)
         await page.Locator("button", new() { HasTextString = "Kreiraj" }).First.ClickAsync();
 
         var postTitle = Unique("UI_POST");
@@ -130,14 +128,14 @@ public class CommentPageTests : UiFixtureBase
         var resp = await createPostRespTask;
         Assert.That(resp.Status, Is.InRange(200, 299), $"UI kreiranje posta nije uspelo. Body={await resp.TextAsync()}");
 
-        // Vrati se na /home i sačekaj učitavanje feed-a (GET /api/Post)
+        // /home  (GET /api/Post)
         await page.GotoAsync($"{UiBaseUrl}/home", new PageGotoOptions { WaitUntil = WaitUntilState.DOMContentLoaded });
 
         await page.WaitForResponseAsync(r =>
             r.Url.Contains("/api/Post") && r.Request.Method == "GET",
             new() { Timeout = 15000 });
 
-        // Ako UI pokaže error "Ne mogu da učitam postove", uradi samo jedan reload
+        //reload
         if (await page.GetByText("Ne mogu da učitam postove").CountAsync() > 0)
         {
             await page.ReloadAsync(new() { WaitUntil = WaitUntilState.DOMContentLoaded });
@@ -164,7 +162,6 @@ public class CommentPageTests : UiFixtureBase
         var threadHeader = postCard.Locator("h3", new() { HasTextString = "Komentari" });
         await Assertions.Expect(threadHeader).ToBeVisibleAsync(new() { Timeout = 15000 });
 
-        // tolerantno: uzmi prvi textarea u zoni komentara
         var commentBox = postCard.Locator("textarea").First;
         await Assertions.Expect(commentBox).ToBeVisibleAsync(new() { Timeout = 15000 });
 
@@ -175,21 +172,18 @@ public class CommentPageTests : UiFixtureBase
 
         var submit = form.Locator("button[type='submit']").First;
 
-        // fallback ako nema type=submit
+        // fallback 
         if (await submit.CountAsync() == 0)
             submit = form.Locator("button", new() { HasTextString = "Objavi" }).First;
-        if (await submit.CountAsync() == 0)
-            submit = form.Locator("button", new() { HasTextString = "Pošalji" }).First;
 
         if (await submit.CountAsync() == 0)
         {
             await postCard.ScreenshotAsync(new() { Path = "debug-no-submit-comment.png" });
-            Assert.Fail("Ne nalazim submit dugme za komentar (nema button[type='submit'] / Objavi / Pošalji).");
+            Assert.Fail("Ne nalazim submit dugme za komentar (nema button[type='submit'] / Objavi ).");
         }
 
         await submit.ClickAsync();
 
-        // čekaj da se komentar pojavi (UI update)
         await Assertions.Expect(postCard).ToContainTextAsync(text, new() { Timeout = 15000 });
     }
 
