@@ -7,4 +7,4 @@ NUnit testovi: dotnet test
 PlayWright testovi: dotnet test
 
 ![alt text](image.png)
-![alt text](image-2.png)
+![alt text](image-3.png)

@@ -1,5 +1,6 @@
 using Microsoft.Playwright;
 using NUnit.Framework;
+using System.Text.RegularExpressions;
 
 namespace PlaywrightTests.E2ETests;
 
@@ -128,6 +129,73 @@ public class PostPageTests : UiFixtureBase
 
         await ctx.DisposeAsync();
     }
+    [Test]
+    public async Task LikeThenUnlikePost_AsUser_TogglesLikeCount()
+    {
+        var (ctx, page) = await NewAuthedPageAsync();
+
+        await page.GotoAsync($"{UiBaseUrl}/home", new PageGotoOptions { WaitUntil = WaitUntilState.DOMContentLoaded });
+
+        // Arrange: napravi post (nebitno ko je autor, bitno je da postoji post u listi)
+        await page.GetByRole(AriaRole.Button, new() { Name = "Kreiraj post" }).ClickAsync();
+
+        var title = Unique("UI_LIKE");
+        await page.GetByPlaceholder("Naslov").FillAsync(title);
+        await page.GetByPlaceholder("Tekst (opciono)").FillAsync("UI body");
+
+        var createRespTask = page.WaitForResponseAsync(r =>
+            r.Url.Contains("/api/Post") && r.Request.Method == "POST",
+            new() { Timeout = 20000 });
+
+        await page.GetByRole(AriaRole.Button, new() { Name = "Objavi" }).ClickAsync();
+        var createResp = await createRespTask;
+        Assert.That(createResp.Status, Is.InRange(200, 299), await createResp.TextAsync());
+
+        // osveži listu
+        await page.GotoAsync($"{UiBaseUrl}/home", new() { WaitUntil = WaitUntilState.DOMContentLoaded });
+
+        var postCard = await FindPostCardByTitleAsync(page, title);
+        var likeBtn = await FindLikeButtonAsync(postCard);
+
+        var beforeText = await likeBtn.InnerTextAsync();
+        var before = ExtractLastInt(beforeText);
+
+        // Act 1: LIKE (toggle)
+        var likeRespTask = page.WaitForResponseAsync(r =>
+            r.Url.Contains("/api/Post") && r.Url.Contains("/like") && r.Request.Method == "PUT",
+            new() { Timeout = 20000 });
+
+        await likeBtn.ClickAsync();
+        var likeResp = await likeRespTask;
+        Assert.That(likeResp.Status, Is.InRange(200, 299),
+            $"Like PUT nije uspeo. Status={likeResp.Status}. Body={await likeResp.TextAsync()}");
+
+        // Assert 1: broj poraste
+        await Assertions.Expect(likeBtn).Not.ToHaveTextAsync(beforeText, new() { Timeout = 15000 });
+        var afterText = await likeBtn.InnerTextAsync();
+        var after = ExtractLastInt(afterText);
+        Assert.That(after, Is.GreaterThan(before), $"Like count nije porastao. Pre={before}, Posle={after}");
+
+        // Act 2: UNLIKE (toggle opet)
+        var unlikeRespTask = page.WaitForResponseAsync(r =>
+            r.Url.Contains("/api/Post") && r.Url.Contains("/like") && r.Request.Method == "PUT",
+            new() { Timeout = 20000 });
+
+        await likeBtn.ClickAsync();
+        var unlikeResp = await unlikeRespTask;
+        Assert.That(unlikeResp.Status, Is.InRange(200, 299),
+            $"Unlike PUT nije uspeo. Status={unlikeResp.Status}. Body={await unlikeResp.TextAsync()}");
+
+        // Assert 2: vrati se na pre
+        await Assertions.Expect(likeBtn).Not.ToHaveTextAsync(afterText, new() { Timeout = 15000 });
+        var finalText = await likeBtn.InnerTextAsync();
+        var final = ExtractLastInt(finalText);
+
+        Assert.That(final, Is.EqualTo(before),
+            $"Like count se nije vratio na početnu vrednost. Pre={before}, PosleLike={after}, PosleUnlike={final}");
+
+        await ctx.DisposeAsync();
+    }
 
     //helpers
     private async Task<ILocator> FindPostCardByTitleAsync(IPage page, string title)
@@ -138,5 +206,30 @@ public class PostPageTests : UiFixtureBase
         var card = h2.Locator("xpath=ancestor::div[contains(@class,'rounded-3xl')][1]");
         await Assertions.Expect(card).ToBeVisibleAsync(new() { Timeout = 20000 });
         return card;
+    }
+    private static async Task<ILocator> FindLikeButtonAsync(ILocator postCard)
+    {
+        var buttons = postCard.Locator("button");
+        var n = await buttons.CountAsync();
+
+        for (int i = 0; i < n; i++)
+        {
+            var b = buttons.Nth(i);
+            var t = (await b.InnerTextAsync()) ?? "";
+
+            if (t.Contains("Komentari", StringComparison.OrdinalIgnoreCase)) continue;
+
+            // like dugme prikazuje broj lajkova -> tražimo bilo kakav broj
+            if (Regex.IsMatch(t.Trim(), @"\d+"))
+                return b;
+        }
+
+        Assert.Fail("Ne mogu da pronađem like dugme (dugme koje nije 'Komentari' i ima broj).");
+        return null!;
+    }
+    private static int ExtractLastInt(string s)
+    {
+        var m = Regex.Match(s ?? "", @"(\d+)\s*$");
+        return m.Success ? int.Parse(m.Groups[1].Value) : 0;
     }
 }
