@@ -105,6 +105,80 @@ public class CommentPageTests : UiFixtureBase
         await ctx.DisposeAsync();
     }
 
+    [Test]
+    public async Task DislikeComment_OnHomePost_TogglesStateAndCount()
+    {
+        var (ctx, page, postCard, _) = await ArrangeHomePostWithCommentsAsync();
+
+        var text = Unique("Komentar");
+        await AddCommentInPostCardAsync(postCard, text);
+
+        var commentBlock = postCard.GetByText(text, new() { Exact = true })
+            .Locator("xpath=ancestor::div[contains(@class,'border-l-2')][1]");
+
+        await Assertions.Expect(commentBlock).ToBeVisibleAsync(new() { Timeout = 20000 });
+
+        var actionsRow = commentBlock.Locator("div.flex.gap-3.mt-2.items-center");
+        await Assertions.Expect(actionsRow).ToBeVisibleAsync(new() { Timeout = 20000 });
+
+        var dislikeBtn = actionsRow.Locator("button").Nth(1);
+
+        var beforeText = await dislikeBtn.InnerTextAsync();
+        var before = ExtractLastInt(beforeText);
+
+        await dislikeBtn.ClickAsync();
+
+        await Assertions.Expect(dislikeBtn)
+            .ToHaveClassAsync(new System.Text.RegularExpressions.Regex(".*bg-red-600.*"),
+                new() { Timeout = 20000 });
+
+        var afterText = await dislikeBtn.InnerTextAsync();
+        var after = ExtractLastInt(afterText);
+
+        Assert.That(after, Is.GreaterThanOrEqualTo(before),
+            $"Dislike count nije porastao/ostao isti. Pre={before}, Posle={after}. PreText='{beforeText}', PosleText='{afterText}'");
+
+        await dislikeBtn.ClickAsync();
+
+        await Assertions.Expect(dislikeBtn)
+            .Not.ToHaveClassAsync(new System.Text.RegularExpressions.Regex(".*bg-red-600.*"),
+                new() { Timeout = 20000 });
+
+        await ctx.DisposeAsync();
+    }
+
+[Test]
+    public async Task ReplyComment_OnHomePost_ShowsNestedReply()
+    {
+        var (ctx, page, postCard, _) = await ArrangeHomePostWithCommentsAsync();
+
+        var parentText = Unique("PARENT");
+        await AddCommentInPostCardAsync(postCard, parentText);
+
+        var parentBlock = postCard.GetByText(parentText, new() { Exact = true })
+            .Locator("xpath=ancestor::div[contains(@class,'border-l-2')][1]");
+        await Assertions.Expect(parentBlock).ToBeVisibleAsync(new() { Timeout = 20000 });
+
+        await parentBlock.GetByRole(AriaRole.Button, new() { Name = "Odgovori" }).ClickAsync();
+
+        var replyBox = parentBlock.Locator("textarea[placeholder^='Odgovori na komentar']").First;
+        await Assertions.Expect(replyBox).ToBeVisibleAsync(new() { Timeout = 20000 });
+
+        var replyText = Unique("REPLY");
+        await replyBox.FillAsync(replyText);
+
+        var replyForm = replyBox.Locator("xpath=ancestor::form[1]");
+        var submit = replyForm.Locator("button[type='submit']").First;
+        await Assertions.Expect(submit).ToBeVisibleAsync(new() { Timeout = 20000 });
+
+        await submit.ClickAsync();
+
+        // verify da se reply pojavio 
+        await Assertions.Expect(postCard).ToContainTextAsync(replyText, new() { Timeout = 20000 });
+
+        await ctx.DisposeAsync();
+    }
+
     //helpers
     private async Task<(IBrowserContext ctx, IPage page, ILocator postCard, string postTitle)>
         ArrangeHomePostWithCommentsAsync()

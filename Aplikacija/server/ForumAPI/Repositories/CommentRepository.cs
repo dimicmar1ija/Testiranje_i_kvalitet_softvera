@@ -52,5 +52,10 @@ namespace ForumAPI.Repositories
             var filter = Builders<Comment>.Filter.In(c => c.Id, ids);
             return _comments.DeleteManyAsync(filter);
         }
+
+         public async Task DeleteManyByPostIdAsync(string postId)
+        {
+            await _comments.DeleteManyAsync(c => c.PostId == postId);
+        }
     }
 }

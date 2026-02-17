@@ -151,5 +151,10 @@ namespace ForumAPI.Services
 
             await _repo.DeleteManyByIdsAsync(toDelete);
         }
+
+         public async Task DeleteAllByPostIdAsync(string postId)
+        {
+            await _repo.DeleteManyByPostIdAsync(postId);
+        }
     }
 }

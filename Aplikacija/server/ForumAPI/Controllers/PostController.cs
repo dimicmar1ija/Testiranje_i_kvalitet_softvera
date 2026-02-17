@@ -1,3 +1,4 @@
+using ForumAPI.Services;
 using ForumApi.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
@@ -11,10 +12,12 @@ namespace ForumAPI.Controllers
     public class PostController : ControllerBase
     {
         private readonly PostService _postService;
+        private readonly CommentService _commentService;
 
-        public PostController(PostService postService)
+        public PostController(PostService postService, CommentService commentService)
         {
             _postService = postService;
+            _commentService = commentService;
         }
 
         [HttpGet]
@@ -99,6 +102,9 @@ namespace ForumAPI.Controllers
             var post = await _postService.GetByIdAsync(id);
             if (post == null)
                 return NotFound();
+            
+            //brisanje komentara vezanih za taj post
+            await _commentService.DeleteAllByPostIdAsync(id);
 
             await _postService.DeleteAsync(post);
 

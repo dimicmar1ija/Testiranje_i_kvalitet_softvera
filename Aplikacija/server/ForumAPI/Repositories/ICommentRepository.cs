@@ -11,5 +11,6 @@ namespace ForumAPI.Repositories
         Task DeleteAsync(string id);
         Task<List<string>> GetChildrenIdsAsync(string parentId);
         Task DeleteManyByIdsAsync(IEnumerable<string> ids);
+        Task DeleteManyByPostIdAsync(string postId);
     }
 }
